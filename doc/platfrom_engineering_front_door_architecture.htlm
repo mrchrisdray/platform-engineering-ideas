@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platform Engineering Front Door Architecture</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .architecture-diagram {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .flow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        
+        .layer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .component {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            min-width: 200px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .component:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .component.entry-point {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .component.orchestration {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        .component.service {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .component.output {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+        }
+        
+        .component h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .component p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .arrow {
+            font-size: 2rem;
+            color: #666;
+            opacity: 0.7;
+        }
+        
+        .layer-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #444;
+            margin-bottom: 15px;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .details-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .config-example {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .workflow-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .step {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .step-number {
+            background: rgba(255, 255, 255, 0.8);
+            color: #333;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-weight: bold;
+        }
+        
+        .plugin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .plugin {
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .plugin:hover {
+            transform: scale(1.05);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        @media (max-width: 768px) {
+            .layer {
+                flex-direction: column;
+            }
+            
+            .component {
+                min-width: 250px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Platform Engineering Front Door</h1>
+            <p>Automated Project Provisioning & Team Onboarding</p>
+        </div>
+        
+        <div class="architecture-diagram">
+            <div class="flow-container">
+                <div class="layer">
+                    <div class="layer-title">Entry Points</div>
+                </div>
+                <div class="layer">
+                    <div class="component entry-point" onclick="showDetails('developer-portal')">
+                        <h3>Developer Portal</h3>
+                        <p>Self-service project requests with form validation</p>
+                    </div>
+                    <div class="component entry-point" onclick="showDetails('servicenow')">
+                        <h3>ServiceNow</h3>
+                        <p>Enterprise workflow with approval processes</p>
+                    </div>
+                    <div class="component entry-point" onclick="showDetails('api')">
+                        <h3>REST API</h3>
+                        <p>Programmatic access for automation</p>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="layer">
+                    <div class="layer-title">Orchestration Layer</div>
+                </div>
+                <div class="layer">
+                    <div class="component orchestration" onclick="showDetails('github-actions')">
+                        <h3>GitHub Actions</h3>
+                        <p>Workflow orchestration & task execution</p>
+                    </div>
+                    <div class="component orchestration" onclick="showDetails('config-engine')">
+                        <h3>Configuration Engine</h3>
+                        <p>Template processing & validation</p>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="layer">
+                    <div class="layer-title">Service Integration</div>
+                </div>
+                <div class="layer">
+                    <div class="component service" onclick="showDetails('github')">
+                        <h3>GitHub</h3>
+                        <p>Repository & team management</p>
+                    </div>
+                    <div class="component service" onclick="showDetails('jfrog')">
+                        <h3>JFrog Artifactory</h3>
+                        <p>Artifact repository setup</p>
+                    </div>
+                    <div class="component service" onclick="showDetails('project-mgmt')">
+                        <h3>Project Management</h3>
+                        <p>Boards, sprints & issue tracking</p>
+                    </div>
+                    <div class="component service" onclick="showDetails('iam')">
+                        <h3>IAM Integration</h3>
+                        <p>Access control & permissions</p>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="layer">
+                    <div class="layer-title">Outputs</div>
+                </div>
+                <div class="layer">
+                    <div class="component output">
+                        <h3>Project Resources</h3>
+                        <p>Fully configured development environment</p>
+                    </div>
+                    <div class="component output">
+                        <h3>Documentation</h3>
+                        <p>Setup guides & access information</p>
+                    </div>
+                    <div class="component output">
+                        <h3>Notifications</h3>
+                        <p>Status updates & completion alerts</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="details-panel">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('implementation')">Implementation</button>
+                <button class="tab" onclick="showTab('configuration')">Configuration</button>
+                <button class="tab" onclick="showTab('workflows')">Workflows</button>
+                <button class="tab" onclick="showTab('plugins')">Pluggable Components</button>
+            </div>
+            
+            <div id="implementation" class="tab-content active">
+                <h2>Implementation Architecture</h2>
+                <div class="workflow-steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3>Request Submission</h3>
+                        <p>Team submits project request via portal or ServiceNow</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3>Validation</h3>
+                        <p>Schema validation and resource availability checks</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <h3>Approval</h3>
+                        <p>Conditional approval workflow based on requirements</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <h3>Orchestration</h3>
+                        <p>GitHub Actions triggers provisioning workflows</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">5</div>
+                        <h3>Provisioning</h3>
+                        <p>Parallel execution of service integrations</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">6</div>
+                        <h3>Finalization</h3>
+                        <p>Documentation generation and notifications</p>
+                    </div>
+                </div>
+                
+                <h3>Key Benefits</h3>
+                <ul style="margin: 20px 0; padding-left: 20px;">
+                    <li><strong>Self-Service:</strong> Teams can provision resources without manual intervention</li>
+                    <li><strong>Consistency:</strong> Standardized templates ensure uniform project setup</li>
+                    <li><strong>Scalability:</strong> Automated workflows handle multiple concurrent requests</li>
+                    <li><strong>Auditability:</strong> Complete audit trail of all provisioning activities</li>
+                    <li><strong>Flexibility:</strong> Pluggable architecture adapts to different project needs</li>
+                </ul>
+            </div>
+            
+            <div id="configuration" class="tab-content">
+                <h2>Configuration Examples</h2>
+                
+                <h3>Project Request Schema</h3>
+                <div class="config-example">
+project_request:
+  metadata:
+    name: "payment-service"
+    team: "payments-team"
+    description: "Payment processing microservice"
+  
+  components:
+    github:
+      enabled: true
+      template: "microservice-java"
+      branch_protection: true
+      required_reviewers: 2
+    
+    artifactory:
+      enabled: true
+      repositories: ["docker", "maven"]
+      retention_policy: "standard"
+    
+    project_management:
+      enabled: true
+      tool: "jira"
+      sprint_duration: 14
+      board_type: "scrum"
+    
+    access_control:
+      admins: ["team-lead@company.com"]
+      developers: ["dev1@company.com", "dev2@company.com"]
+                </div>
+                
+                <h3>GitHub Actions Workflow</h3>
+                <div class="config-example">
+name: Project Provisioning
+on:
+  repository_dispatch:
+    types: [provision-project]
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Configuration
+        run: |
+          echo "Validating project configuration..."
+          # Schema validation logic
+      
+      - name: Setup GitHub Repository
+        if: ${{ fromJson(github.event.client_payload.config).components.github.enabled }}
+        uses: ./.github/actions/setup-github
+        with:
+          config: ${{ github.event.client_payload.config }}
+      
+      - name: Configure Artifactory
+        if: ${{ fromJson(github.event.client_payload.config).components.artifactory.enabled }}
+        uses: ./.github/actions/setup-artifactory
+        with:
+          config: ${{ github.event.client_payload.config }}
+      
+      - name: Setup Project Management
+        if: ${{ fromJson(github.event.client_payload.config).components.project_management.enabled }}
+        uses: ./.github/actions/setup-project-mgmt
+        with:
+          config: ${{ github.event.client_payload.config }}
+                </div>
+            </div>
+            
+            <div id="workflows" class="tab-content">
+                <h2>Workflow Orchestration</h2>
+                
+                <h3>Main Provisioning Flow</h3>
+                <div class="workflow-steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3>Intake</h3>
+                        <p>Portal/ServiceNow → Webhook → GitHub Actions</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3>Parse Config</h3>
+                        <p>YAML parsing and schema validation</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <h3>Conditional Logic</h3>
+                        <p>Determine which services to provision</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <h3>Parallel Execution</h3>
+                        <p>Execute service provisioning in parallel</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">5</div>
+                        <h3>Integration</h3>
+                        <p>Link services and configure dependencies</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">6</div>
+                        <h3>Completion</h3>
+                        <p>Generate docs and send notifications</p>
+                    </div>
+                </div>
+                
+                <h3>Error Handling & Rollback</h3>
+                <div class="config-example">
+# Rollback strategy example
+on_failure:
+  - name: Cleanup GitHub Resources
+    if: steps.github-setup.outcome == 'failure'
+    run: |
+      # Remove repositories and teams
+      
+  - name: Cleanup Artifactory
+    if: steps.artifactory-setup.outcome == 'failure'
+    run: |
+      # Remove repositories and permissions
+      
+  - name: Send Failure Notification
+    run: |
+      # Notify team of failure with details
+                </div>
+            </div>
+            
+            <div id="plugins" class="tab-content">
+                <h2>Pluggable Components</h2>
+                
+                <div class="plugin-grid">
+                    <div class="plugin">
+                        <h3>GitHub</h3>
+                        <p>Repository creation, team management, branch protection</p>
+                    </div>
+                    <div class="plugin">
+                        <h3>JFrog Artifactory</h3>
+                        <p>Docker, Maven, npm repositories with access control</p>
+                    </div>
+                    <div class="plugin">
+                        <h3>Jira</h3>
+                        <p>Project boards, sprints, issue tracking</p>
+                    </div>
+                    <div class="plugin">
+                        <h3>Azure DevOps</h3>
+                        <p>Boards, repositories, pipelines</p>
+                    </div>
+                    <div class="plugin">
+                        <h3>HashiCorp Vault</h3>
+                        <p>Secrets management and access policies</p>
+                    </div>
+                    <div class="plugin">
+                        <h3>Monitoring</h3>
+                        <p>Grafana dashboards, Prometheus alerts</p>
+                    </div>
+                    <div class="plugin">
+                        <h3>Security Scanning</h3>
+                        <p>SonarQube, Snyk, container scanning</p>
+                    </div>
+                    <div class="plugin">
+                        <h3>Documentation</h3>
+                        <p>Confluence, GitBook, README generation</p>
+                    </div>
+                </div>
+                
+                <h3>Plugin Interface</h3>
+                <div class="config-example">
+# Plugin configuration interface
+class ProvisioningPlugin:
+    def validate_config(self, config):
+        """Validate plugin-specific configuration"""
+        pass
+    
+    def provision(self, config, context):
+        """Execute provisioning logic"""
+        pass
+    
+    def cleanup(self, config, context):
+        """Clean up resources on failure"""
+        pass
+    
+    def get_outputs(self):
+        """Return provisioned resource information"""
+        pass
+
+# Example: GitHub plugin implementation
+class GitHubPlugin(ProvisioningPlugin):
+    def provision(self, config, context):
+        repo = self.create_repository(config)
+        self.setup_teams(repo, config.teams)
+        self.configure_branch_protection(repo, config.branch_protection)
+        return {"repository_url": repo.html_url}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for component details -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+    
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+            
+            // Remove active class from all tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+        
+        function showDetails(component) {
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+            
+            const details = {
+                'developer-portal': {
+                    title: 'Developer Portal Integration',
+                    content: `
+                        <h2>Developer Portal Integration</h2>
+                        <p>Self-service portal built with modern web technologies providing:</p>
+                        <ul>
+                            <li><strong>Form-based Request Creation:</strong> Intuitive forms for project configuration</li>
+                            <li><strong>Real-time Validation:</strong> Instant feedback on configuration errors</li>
+                            <li><strong>Template Gallery:</strong> Pre-built project templates for common use cases</li>
+                            <li><strong>Progress Tracking:</strong> Real-time status updates during provisioning</li>
+                            <li><strong>Resource Dashboard:</strong> View all provisioned resources in one place</li>
+                        </ul>
+                        <h3>Technical Implementation:</h3>
+                        <ul>
+                            <li>React/Vue.js frontend with form validation</li>
+                            <li>REST API integration with GitHub Actions</li>
+                            <li>WebSocket for real-time updates</li>
+                            <li>OAuth integration with enterprise SSO</li>
+                        </ul>
+                    `
+                },
+                'servicenow': {
+                    title: 'ServiceNow Integration',
+                    content: `
+                        <h2>ServiceNow Integration</h2>
+                        <p>Enterprise-grade workflow integration providing:</p>
+                        <ul>
+                            <li><strong>Catalog Items:</strong> Standardized request forms in ServiceNow</li>
+                            <li><strong>Approval Workflows:</strong> Multi-stage approval processes</li>
+                            <li><strong>Change Management:</strong> Integration with ITSM processes</li>
+                            <li><strong>Cost Tracking:</strong> Budget approval and cost center allocation</li>
+                            <li><strong>Compliance Logging:</strong> Full audit trail for enterprise compliance</li>
+                        </ul>
+                        <h3>Integration Methods:</h3>
+                        <ul>
+                            <li>REST API callbacks to GitHub Actions</li>
+                            <li>MID Server for secure enterprise connectivity</li>
+                            <li>Business Rules for automated processing</li>
+                            <li>Integration Hub for complex workflows</li>
+                        </ul>
+                    `
+                },
+                'api': {
+                    title: 'REST API',
+                    content: `
+                        <h2>REST API Integration</h2>
+                        <p>Programmatic access for automation and integration:</p>
+                        <ul>
+                            <li><strong>RESTful Endpoints:</strong> Standard HTTP methods for all operations</li>
+                            <li><strong>Authentication:</strong> API keys, OAuth 2.0, or JWT tokens</li>
+                            <li><strong>Rate Limiting:</strong> Prevent abuse and ensure fair usage</li>
+                            <li><strong>Webhook Support:</strong> Callbacks for status updates</li>
+                            <li><strong>OpenAPI Specification:</strong> Complete API documentation</li>
+                        </ul>
+                        <h3>Example Usage:</h3>
+                        <pre>
+POST /api/v1/projects
+{
+  "name": "my-project",
+  "template": "microservice",
+  "components": {
+    "github": {"enabled": true},
+    "artifactory": {"enabled": true}
+  }
+}
+                        </pre>
+                    `
+                },
+                'github-actions': {
+                    title: 'GitHub Actions Orchestration',
+                    content: `
+                        <h2>GitHub Actions Orchestration</h2>
+                        <p>Workflow orchestration engine providing:</p>
+                        <ul>
+                            <li><strong>Event-Driven Execution:</strong> Triggered by webhooks or repository dispatch</li>
+                            <li><strong>Parallel Processing:</strong> Concurrent execution of provisioning tasks</li>
+                            <li><strong>Conditional Logic:</strong> Smart execution based on configuration</li>
+                            <li><strong>Error Handling:</strong> Comprehensive rollback mechanisms</li>
+                            <li><strong>Secrets Management:</strong> Secure handling of API keys and tokens</li>
+                        </ul>
+                        <h3>Workflow Structure:</h3>
+                        <ul>
+                            <li>Main orchestration workflow</li>
+                            <li>Reusable composite actions</li>
+                            <li>Service-specific workflows</li>
+                            <li>Cleanup and rollback workflows</li>
+                        </ul>
+                    `
+                },
+                'config-engine': {
+                    title: 'Configuration Engine',
+                    content: `
+                        <h2>Configuration Engine</h2>
+                        <p>Template processing and validation system:</p>
+                        <ul>
+                            <li><strong>YAML Schema Validation:</strong> Ensure configuration correctness</li>
+                            <li><strong>Template Inheritance:</strong> Base templates with customizations</li>
+                            <li><strong>Variable Substitution:</strong> Dynamic value replacement</li>
+                            <li><strong>Policy Enforcement:</strong> Organizational standards compliance</li>
+                            <li><strong>Version Management:</strong> Template versioning and migration</li>
+                        </ul>
+                        <h3>Template Structure:</h3>
+                        <ul>
+                            <li>Base project templates</li>
+                            <li>Component-specific configurations</li>
+                            <li>Environment-specific overrides</li>
+                            <li>Organizational policies</li>
+                        </ul>
+                    `
+                },
+                'github': {
+                    title: 'GitHub Integration',
+                    content: `
+                        <h2>GitHub Integration</h2>
+                        <p>Repository and team management automation:</p>
+                        <ul>
+                            <li><strong>Repository Creation:</strong> From templates with customization</li>
+                            <li><strong>Team Management:</strong> Automatic team creation and permission assignment</li>
+                            <li><strong>Branch Protection:</strong> Configurable rules and policies</li>
+                            <li><strong>Webhook Configuration:</strong> CI/CD pipeline integration</li>
+                            <li><strong>Issue Templates:</strong> Standardized issue and PR templates</li>
+                        </ul>
+                        <h3>Capabilities:</h3>
+                        <ul>
+                            <li>GitHub Apps for enhanced security</li>
+                            <li>Organization-level policy enforcement</li>
+                            <li>Automated code scanning setup</li>
+                            <li>Dependency management configuration</li>
+                        </ul>
+                    `
+                },
+                'jfrog': {
+                    title: 'JFrog Artifactory Integration',
+                    content: `
+                        <h2>JFrog Artifactory Integration</h2>
+                        <p>Artifact repository management and configuration:</p>
+                        <ul>
+                            <li><strong>Repository Creation:</strong> Docker, Maven, npm, and other package types</li>
+                            <li><strong>Access Control:</strong> User and group permission management</li>
+                            <li><strong>Retention Policies:</strong> Automated cleanup and lifecycle management</li>
+                            <li><strong>Xray Integration:</strong> Security and compliance scanning</li>
+                            <li><strong>Replication Setup:</strong> Multi-site artifact distribution</li>
+                        </ul>
+                        <h3>Repository Types:</h3>
+                        <ul>
+                            <li>Local repositories for internal artifacts</li>
+                            <li>Remote repositories for external dependencies</li>
+                            <li>Virtual repositories for unified access</li>
+                            <li>Federated repositories for global distribution</li>
+                        </ul>
+                    `
+                },
+                'project-mgmt': {
+                    title: 'Project Management Integration',
+                    content: `
+                        <h2>Project Management Integration</h2>
+                        <p>Automated project board and sprint configuration:</p>
+                        <ul>
+                            <li><strong>Board Creation:</strong> Scrum, Kanban, or custom workflows</li>
+                            <li><strong>Sprint Configuration:</strong> Automated 2-week sprint setup</li>
+                            <li><strong>User Assignment:</strong> Team member role assignment</li>
+                            <li><strong>Workflow Templates:</strong> Standard development processes</li>
+                            <li><strong>Integration Hooks:</strong> Connect with GitHub issues and PRs</li>
+                        </ul>
+                        <h3>Supported Tools:</h3>
+                        <ul>
+                            <li>Jira (Cloud and Server)</li>
+                            <li>Azure DevOps Boards</li>
+                            <li>GitHub Projects</li>
+                            <li>Linear</li>
+                        </ul>
+                    `
+                },
+                'iam': {
+                    title: 'IAM Integration',
+                    content: `
+                        <h2>Identity & Access Management</h2>
+                        <p>Centralized access control and permission management:</p>
+                        <ul>
+                            <li><strong>Role-Based Access:</strong> Standardized roles across all tools</li>
+                            <li><strong>Group Management:</strong> Automatic team group creation</li>
+                            <li><strong>Permission Sync:</strong> Consistent permissions across platforms</li>
+                            <li><strong>Access Reviews:</strong> Periodic access certification</li>
+                            <li><strong>Audit Logging:</strong> Complete access change history</li>
+                        </ul>
+                        <h3>Integration Points:</h3>
+                        <ul>
+                            <li>Active Directory / LDAP</li>
+                            <li>Okta / Azure AD</li>
+                            <li>AWS IAM / Google Cloud IAM</li>
+                            <li>HashiCorp Vault</li>
+                        </ul>
+                    `
+                }
